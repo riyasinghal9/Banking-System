@@ -36,27 +36,5 @@
     "supertest": "^6.3.3",
     "nodemon": "^3.0.2",
     "@types/jest": "^29.5.8"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/server.js",
-      "!src/database/migrate.js",
-      "!src/database/seed.js"
-    ],
-    "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "html"]
-  },
-  "engines": {
-    "node": ">=14.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/core-banking-system.git"
-  },
-  "bugs": {
-    "url": "https://github.com/yourusername/core-banking-system/issues"
-  },
-  "homepage": "https://github.com/yourusername/core-banking-system#readme"
+  }
 }

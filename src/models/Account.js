@@ -51,6 +51,42 @@ class Account {
     }
   }
 
+  static async update(id, updateData) {
+    try {
+      const fields = [];
+      const values = [];
+      let paramCount = 1;
+
+      for (const [key, value] of Object.entries(updateData)) {
+        if (key !== "id" && key !== "created_at") {
+          fields.push(key + " = $" + paramCount);
+          values.push(value);
+          paramCount++;
+        }
+      }
+
+      if (fields.length === 0) {
+        throw new Error("No valid fields to update");
+      }
+
+      fields.push("updated_at = CURRENT_TIMESTAMP");
+      values.push(id);
+
+      const query = "UPDATE accounts SET " + fields.join(", ") + " WHERE id = $" + paramCount + " RETURNING *";
+      const result = await pool.query(query, values);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      logger.info("Account updated", { accountId: id, updatedFields: Object.keys(updateData) });
+      return result.rows[0];
+    } catch (error) {
+      logger.error("Error updating account:", error);
+      throw error;
+    }
+  }
+
   static async updateBalance(id, newBalance) {
     try {
       const result = await pool.query("UPDATE accounts SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [newBalance, id]);

@@ -22,7 +22,7 @@ class TransactionService {
       
       await Account.updateBalance(accountId, newBalance);
       
-      await Transaction.create({
+      const transaction = await Transaction.create({
         account_id: accountId,
         transaction_type: "deposit",
         amount: parseFloat(amount),
@@ -33,7 +33,12 @@ class TransactionService {
       await client.query("COMMIT");
       logger.logTransaction({ type: "deposit", accountId, amount, description });
       
-      return { success: true, message: "Deposit successful", newBalance };
+      return { 
+        success: true, 
+        message: "Deposit successful", 
+        transaction: transaction,
+        newBalance: newBalance 
+      };
     } catch (error) {
       await client.query("ROLLBACK");
       logger.error("Error during deposit:", error);
@@ -65,7 +70,7 @@ class TransactionService {
       
       await Account.updateBalance(accountId, newBalance);
       
-      await Transaction.create({
+      const transaction = await Transaction.create({
         account_id: accountId,
         transaction_type: "withdrawal",
         amount: parseFloat(amount),
@@ -76,7 +81,12 @@ class TransactionService {
       await client.query("COMMIT");
       logger.logTransaction({ type: "withdrawal", accountId, amount, description });
       
-      return { success: true, message: "Withdrawal successful", newBalance };
+      return { 
+        success: true, 
+        message: "Withdrawal successful", 
+        transaction: transaction,
+        newBalance: newBalance 
+      };
     } catch (error) {
       await client.query("ROLLBACK");
       logger.error("Error during withdrawal:", error);
@@ -86,10 +96,14 @@ class TransactionService {
     }
   }
 
-  static async transfer(fromAccountId, toAccountId, amount, description = "Funds Transfer") {
+  static async transfer(fromAccountId, toAccountId, amount, description = "Transfer") {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+      
+      if (fromAccountId === toAccountId) {
+        throw new Error("Cannot transfer to the same account");
+      }
       
       const fromAccount = await Account.findById(fromAccountId);
       const toAccount = await Account.findById(toAccountId);
@@ -112,28 +126,41 @@ class TransactionService {
       await Account.updateBalance(fromAccountId, fromNewBalance);
       await Account.updateBalance(toAccountId, toNewBalance);
       
-      await Transaction.create({
+      const fromTransaction = await Transaction.create({
         account_id: fromAccountId,
         transaction_type: "transfer_out",
         amount: parseFloat(amount),
         balance_after: fromNewBalance,
-        description: description || "Transfer to account " + toAccount.account_number,
+        description: description,
         reference_account_id: toAccountId
       });
       
-      await Transaction.create({
+      const toTransaction = await Transaction.create({
         account_id: toAccountId,
         transaction_type: "transfer_in",
         amount: parseFloat(amount),
         balance_after: toNewBalance,
-        description: description || "Transfer from account " + fromAccount.account_number,
+        description: description,
         reference_account_id: fromAccountId
       });
       
       await client.query("COMMIT");
-      logger.logTransaction({ type: "transfer", fromAccountId, toAccountId, amount, description });
+      logger.logTransaction({ 
+        type: "transfer", 
+        fromAccountId, 
+        toAccountId, 
+        amount, 
+        description 
+      });
       
-      return { success: true, message: "Transfer successful" };
+      return { 
+        success: true, 
+        message: "Transfer successful", 
+        fromTransaction: fromTransaction,
+        toTransaction: toTransaction,
+        fromNewBalance: fromNewBalance,
+        toNewBalance: toNewBalance
+      };
     } catch (error) {
       await client.query("ROLLBACK");
       logger.error("Error during transfer:", error);

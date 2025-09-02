@@ -36,8 +36,32 @@ class User {
     }
   }
 
-  static async comparePassword(candidatePassword, hash) {
-    return bcrypt.compare(candidatePassword, hash);
+  static async comparePassword(candidatePassword, userId) {
+    try {
+      const user = await this.findById(userId);
+      if (!user) {
+        return false;
+      }
+      return bcrypt.compare(candidatePassword, user.password_hash);
+    } catch (error) {
+      logger.error("Error comparing password:", error);
+      throw error;
+    }
+  }
+
+  static async updatePassword(userId, newPassword) {
+    try {
+      const password_hash = await bcrypt.hash(newPassword, 10);
+      const result = await pool.query("UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, username", [password_hash, userId]);
+      if (result.rows.length === 0) {
+        return null;
+      }
+      logger.info("User password updated", { userId });
+      return result.rows[0];
+    } catch (error) {
+      logger.error("Error updating password:", error);
+      throw error;
+    }
   }
 }
 

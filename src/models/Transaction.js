@@ -58,12 +58,22 @@ class Transaction {
       const countResult = await pool.query("SELECT COUNT(*) FROM transactions WHERE account_id = $1", [accountId]);
       const total = parseInt(countResult.rows[0].count);
       const result = await pool.query("SELECT t.*, a.account_number, c.first_name, c.last_name FROM transactions t JOIN accounts a ON t.account_id = a.id JOIN customers c ON a.customer_id = c.id WHERE t.account_id = $1 ORDER BY t.created_at DESC LIMIT $2 OFFSET $3", [accountId, limit, offset]);
-      return {
-        transactions: result.rows,
-        pagination: { page, limit, total, pages: Math.ceil(total / limit) }
-      };
+      return result.rows;
     } catch (error) {
       logger.error("Error finding transactions by account ID:", error);
+      throw error;
+    }
+  }
+
+  static async findByDateRange(startDate, endDate, page = 1, limit = 10) {
+    try {
+      const offset = (page - 1) * limit;
+      const countResult = await pool.query("SELECT COUNT(*) FROM transactions WHERE created_at BETWEEN $1 AND $2", [startDate, endDate]);
+      const total = parseInt(countResult.rows[0].count);
+      const result = await pool.query("SELECT t.*, a.account_number, c.first_name, c.last_name FROM transactions t JOIN accounts a ON t.account_id = a.id JOIN customers c ON a.customer_id = c.id WHERE t.created_at BETWEEN $1 AND $2 ORDER BY t.created_at DESC LIMIT $3 OFFSET $4", [startDate, endDate, limit, offset]);
+      return result.rows;
+    } catch (error) {
+      logger.error("Error finding transactions by date range:", error);
       throw error;
     }
   }

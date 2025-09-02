@@ -1,20 +1,21 @@
 const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { validateLogin, validateUserRegistration } = require("../middleware/validation");
 const { protect } = require("../middleware/auth");
 const logger = require("../utils/logger");
 
-const router = express.Router();
-
-// Login endpoint
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
 router.post("/login", validateLogin, async (req, res, next) => {
+  const { username, password } = req.body;
   try {
-    const { username, password } = req.body;
-
-    // Find user by username
     const user = await User.findByUsername(username);
     if (!user) {
+      logger.logSecurity("Login attempt failed - User not found", { username, ip: req.ip });
       return res.status(401).json({
         success: false,
         error: "Invalid credentials"
@@ -22,7 +23,7 @@ router.post("/login", validateLogin, async (req, res, next) => {
     }
 
     // Check password
-    const isPasswordValid = await User.comparePassword(password, user.password_hash);
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       logger.logSecurity("Failed login attempt", {
         username,
@@ -35,10 +36,6 @@ router.post("/login", validateLogin, async (req, res, next) => {
       });
     }
 
-    // Update last login
-    // await User.updateLastLogin(user.id);
-
-    // Generate JWT token
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
@@ -70,113 +67,70 @@ router.post("/login", validateLogin, async (req, res, next) => {
   }
 });
 
-// Register endpoint
+// @desc    Register new user
+// @route   POST /api/auth/register
+// @access  Public
 router.post("/register", validateUserRegistration, async (req, res, next) => {
+  const { username, password, customer_id, role } = req.body;
   try {
-    const { username, password, customer_id, role = "customer" } = req.body;
-
-    // Check if username already exists
-    const existingUser = await User.findByUsername(username);
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        error: "Username already exists"
-      });
-    }
-
-    // Create new user
-    const user = await User.create({
-      username,
-      password,
-      customer_id,
-      role
-    });
-
+    const newUser = await User.create({ username, password, customer_id, role });
     logger.info("User registered successfully", {
-      userId: user.id,
-      username: user.username,
-      role: user.role
+      userId: newUser.id,
+      username: newUser.username,
+      role: newUser.role
     });
-
     res.status(201).json({
       success: true,
       message: "User registered successfully",
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        customer_id: user.customer_id
-      }
+      user: newUser
     });
   } catch (error) {
-    logger.error("Registration error:", error);
     next(error);
   }
 });
 
-// Get current user
+// @desc    Get current logged in user
+// @route   GET /api/auth/me
+// @access  Private
 router.get("/me", protect, async (req, res, next) => {
-  try {
-    res.status(200).json({
-      success: true,
-      user: {
-        id: req.user.id,
-        username: req.user.username,
-        role: req.user.role,
-        customer_id: req.user.customer_id,
-        first_name: req.user.first_name,
-        last_name: req.user.last_name,
-        email: req.user.email
-      }
-    });
-  } catch (error) {
-    logger.error("Get current user error:", error);
-    next(error);
-  }
+  res.status(200).json({
+    success: true,
+    user: req.user
+  });
 });
 
-// Change password
+// @desc    Change user password
+// @route   PUT /api/auth/change-password
+// @access  Private
 router.put("/change-password", protect, async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
   try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        error: "Current password and new password are required"
+        error: "User not found"
       });
     }
 
-    // Verify current password
-    const user = await User.findById(req.user.id);
-    const isCurrentPasswordValid = await User.comparePassword(currentPassword, user.password_hash);
-    
-    if (!isCurrentPasswordValid) {
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
-        error: "Current password is incorrect"
+        error: "Current password incorrect"
       });
     }
 
-    // Update password
-    const bcrypt = require("bcryptjs");
-    const newPasswordHash = await bcrypt.hash(newPassword, 10);
-    
-    // Update user password in database
-    const pool = require("../config/database").pool;
-    await pool.query("UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [newPasswordHash, req.user.id]);
-
-    logger.info("Password changed successfully", {
-      userId: req.user.id,
-      username: req.user.username
+    await User.updatePassword(user.id, newPassword);
+    logger.info("User password changed", {
+      userId: user.id,
+      username: user.username
     });
-
     res.status(200).json({
       success: true,
-      message: "Password changed successfully"
+      message: "Password updated successfully"
     });
   } catch (error) {
-    logger.error("Change password error:", error);
     next(error);
   }
 });
