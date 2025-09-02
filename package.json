@@ -1,0 +1,62 @@
+{
+  "name": "core-banking-system",
+  "version": "1.0.0",
+  "description": "A comprehensive core banking system backend with Node.js, Express, and PostgreSQL",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "migrate": "node src/database/migrate.js",
+    "seed": "node src/database/seed.js",
+    "lint": "echo 'TODO: Add ESLint configuration'",
+    "format": "echo 'TODO: Add Prettier configuration'"
+  },
+  "keywords": ["banking", "nodejs", "express", "postgresql", "api"],
+  "author": "Banking System Developer",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "joi": "^17.11.0",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "winston": "^3.11.0",
+    "express-validator": "^7.0.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "nodemon": "^3.0.2",
+    "@types/jest": "^29.5.8"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/server.js",
+      "!src/database/migrate.js",
+      "!src/database/seed.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"]
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/core-banking-system.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/core-banking-system/issues"
+  },
+  "homepage": "https://github.com/yourusername/core-banking-system#readme"
+}
